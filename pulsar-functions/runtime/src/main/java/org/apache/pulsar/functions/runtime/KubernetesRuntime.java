@@ -52,6 +52,7 @@ import io.kubernetes.client.models.V1StatefulSetSpec;
 import io.kubernetes.client.models.V1Toleration;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.codec.digest.DigestUtils;
 import org.apache.pulsar.functions.auth.KubernetesFunctionAuthProvider;
 import org.apache.pulsar.functions.instance.AuthenticationConfig;
 import org.apache.pulsar.functions.instance.InstanceConfig;
@@ -254,9 +255,19 @@ public class KubernetesRuntime implements Runtime {
             throw e;
         }
 
-        if (channel == null && stub == null) {
+        setupGrpcChannelIfNeeded();
+    }
+
+    @Override
+    public void reinitialize() {
+        setupGrpcChannelIfNeeded();
+    }
+
+    private synchronized void setupGrpcChannelIfNeeded() {
+        if (channel == null || stub == null) {
             channel = new ManagedChannel[instanceConfig.getFunctionDetails().getParallelism()];
             stub = new InstanceControlGrpc.InstanceControlFutureStub[instanceConfig.getFunctionDetails().getParallelism()];
+
             String jobName = createJobName(instanceConfig.getFunctionDetails());
             for (int i = 0; i < instanceConfig.getFunctionDetails().getParallelism(); ++i) {
                 String address = getServiceUrl(jobName, jobNamespace, i);
@@ -339,16 +350,16 @@ public class KubernetesRuntime implements Runtime {
     @Override
     public CompletableFuture<InstanceCommunication.MetricsData> getMetrics(int instanceId) {
         CompletableFuture<InstanceCommunication.MetricsData> retval = new CompletableFuture<>();
-        if (instanceId < 0 || instanceId >= stub.length) {
-            if (stub == null) {
-                retval.completeExceptionally(new RuntimeException("Invalid InstanceId"));
-                return retval;
-            }
-        }
         if (stub == null) {
             retval.completeExceptionally(new RuntimeException("Not alive"));
             return retval;
         }
+
+        if (instanceId < 0 || instanceId >= stub.length) {
+            retval.completeExceptionally(new RuntimeException("Invalid InstanceId"));
+            return retval;
+        }
+
         ListenableFuture<InstanceCommunication.MetricsData> response = stub[instanceId].withDeadlineAfter(GRPC_TIMEOUT_SECS, TimeUnit.SECONDS).getMetrics(Empty.newBuilder().build());
         Futures.addCallback(response, new FutureCallback<InstanceCommunication.MetricsData>() {
             @Override
@@ -1005,14 +1016,26 @@ public class KubernetesRuntime implements Runtime {
         return ports;
     }
 
-    private static String createJobName(Function.FunctionDetails functionDetails) {
+    public static String createJobName(Function.FunctionDetails functionDetails) {
         return createJobName(functionDetails.getTenant(),
                 functionDetails.getNamespace(),
                 functionDetails.getName());
     }
 
+    private static String toValidPodName(String ori) {
+        return ori.toLowerCase().replaceAll("[^a-z0-9-\\.]", "-");
+    }
+
     private static String createJobName(String tenant, String namespace, String functionName) {
-        return "pf-" + tenant + "-" + namespace + "-" + functionName;
+        final String jobNameContent = String.format("%s-%s-%s", tenant, namespace,functionName);
+        final String jobName = "pf-" + jobNameContent;
+        final String convertedJobName = toValidPodName(jobName);
+        if (jobName.equals(convertedJobName)) {
+            return jobName;
+        }
+        // toValidPodName may cause naming collisions, add a short hash here to avoid it
+        final String shortHash = DigestUtils.sha1Hex(jobNameContent).toLowerCase().substring(0, 8);
+        return convertedJobName + "-" + shortHash;
     }
 
     private static String getServiceUrl(String jobName, String jobNamespace, int instanceId) {
