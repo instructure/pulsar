@@ -4,7 +4,7 @@ title: Built-in connector
 sidebar_label: Built-in connector
 ---
 
-Pulsar distribution includes a set of common connectors that have been packaged and tested with the rest of Apache Pulsar. These connectors import and export data from some of the most commonly used data systems. 
+Pulsar distribution includes a set of common connectors that have been packaged and tested with the rest of Apache Pulsar. These connectors import and export data from some of the most commonly used data systems.
 
 Using any of these connectors is as easy as writing a simple connector and running the connector locally or submitting the connector to a Pulsar Functions cluster.
 
@@ -13,15 +13,15 @@ Using any of these connectors is as easy as writing a simple connector and runni
 Pulsar has various source connectors, which are sorted alphabetically as below.
 
 - [Canal source connector](io-cdc-canal.md)
-  
+
 - [Data-generator source connector](io-data-generator.md)
-  
+
 - [Debezium MySQL source connector](io-cdc-debezium.md)
-  
+
 - [Debezium PostgreSQL source Connector](io-postgresql-debezium.md)
-  
+
 - [File source connector](io-file.md)
-  
+
 - [Flume source connector](io-flume-source.md)
 
 - [Twitter firehose source connector](io-twitter.md)
@@ -30,7 +30,7 @@ Pulsar has various source connectors, which are sorted alphabetically as below.
 
 - [Kafka-connect-adaptor source connector](io-kafka-connect.md)
 
-- [Kinesis source connector](io-kinesis-source.md)
+- [Kinesis source connector](io-kinesis.md#source)
 
 - [Netty source connector](io-netty.md)
 
@@ -41,7 +41,7 @@ Pulsar has various source connectors, which are sorted alphabetically as below.
 Pulsar has various sink connectors, which are sorted alphabetically as below.
 
 - [Aerospike sink connector](io-aerospike.md)
-  
+
 - [Cassandra sink connector](io-cassandra.md)
 
 - [ElasticSearch sink connector](io-elasticsearch.md)
@@ -59,6 +59,8 @@ Pulsar has various sink connectors, which are sorted alphabetically as below.
 - [JDBC sink connector](io-jdbc.md)
 
 - [Kafka sink connector](io-kafka.md)
+
+- [Kinesis Sink Connector](io-kinesis.md#sink)
 
 - [MongoDB sink connector](io-mongo.md)
 
