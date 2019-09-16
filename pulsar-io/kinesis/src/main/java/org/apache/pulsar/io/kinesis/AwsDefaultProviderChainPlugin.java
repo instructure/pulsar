@@ -3,7 +3,6 @@ package org.apache.pulsar.io.kinesis;
 import com.amazonaws.auth.AWSCredentialsProvider;
 import com.amazonaws.auth.DefaultAWSCredentialsProviderChain;
 import software.amazon.awssdk.auth.credentials.DefaultCredentialsProvider;
-import software.amazon.awssdk.services.sts.auth.StsGetSessionTokenCredentialsProvider;
 
 import java.io.IOException;
 
