@@ -193,7 +193,7 @@ public class SourcesImpl extends ComponentImpl {
                     try {
                         Optional<FunctionAuthData> functionAuthData = worker().getFunctionRuntimeManager()
                                 .getRuntimeFactory()
-                                .getAuthProvider()
+                                .getAuthProvider(functionDetails)
                                 .cacheAuthData(tenant, namespace, sourceName, clientAuthenticationDataHttps);
 
                         if (functionAuthData.isPresent()) {
@@ -375,7 +375,7 @@ public class SourcesImpl extends ComponentImpl {
                     try {
                         Optional<FunctionAuthData> newFunctionAuthData = worker().getFunctionRuntimeManager()
                                 .getRuntimeFactory()
-                                .getAuthProvider()
+                                .getAuthProvider(functionDetails)
                                 .updateAuthData(
                                         tenant, namespace,
                                         sourceName, existingFunctionAuthData,

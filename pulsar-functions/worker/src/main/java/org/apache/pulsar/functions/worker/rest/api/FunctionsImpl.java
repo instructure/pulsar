@@ -191,7 +191,7 @@ public class FunctionsImpl extends ComponentImpl {
                     try {
                         Optional<FunctionAuthData> functionAuthData = worker().getFunctionRuntimeManager()
                                 .getRuntimeFactory()
-                                .getAuthProvider()
+                                .getAuthProvider(functionDetails)
                                 .cacheAuthData(tenant, namespace, functionName, clientAuthenticationDataHttps);
 
                         if (functionAuthData.isPresent()) {
@@ -373,7 +373,7 @@ public class FunctionsImpl extends ComponentImpl {
                     try {
                         Optional<FunctionAuthData> newFunctionAuthData = worker().getFunctionRuntimeManager()
                                 .getRuntimeFactory()
-                                .getAuthProvider()
+                                .getAuthProvider(functionDetails)
                                 .updateAuthData(
                                         tenant, namespace,
                                         functionName, existingFunctionAuthData,

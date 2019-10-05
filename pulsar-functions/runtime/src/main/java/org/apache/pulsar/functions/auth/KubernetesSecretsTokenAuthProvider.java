@@ -31,7 +31,6 @@ import io.kubernetes.client.models.V1VolumeMount;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.RandomStringUtils;
 import org.apache.pulsar.broker.authentication.AuthenticationDataSource;
-import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.impl.auth.AuthenticationToken;
 import org.apache.pulsar.functions.instance.AuthenticationConfig;
 import org.apache.pulsar.functions.utils.Actions;
@@ -55,7 +54,6 @@ public class KubernetesSecretsTokenAuthProvider implements KubernetesFunctionAut
     private static final String SECRET_NAME = "function-auth";
     private static final String DEFAULT_SECRET_MOUNT_DIR = "/etc/auth";
     private static final String FUNCTION_AUTH_TOKEN = "token";
-
 
     private final CoreV1Api coreClient;
     private final String kubeNamespace;

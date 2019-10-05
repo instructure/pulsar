@@ -6,9 +6,9 @@
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
- *
- *   http://www.apache.org/licenses/LICENSE-2.0
- *
+ * <p>
+ * http://www.apache.org/licenses/LICENSE-2.0
+ * <p>
  * Unless required by applicable law or agreed to in writing,
  * software distributed under the License is distributed on an
  * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -19,11 +19,12 @@
 
 package org.apache.pulsar.functions.runtime;
 
+import com.google.gson.JsonArray;
+import com.google.gson.JsonObject;
 import com.google.protobuf.util.JsonFormat;
 import io.kubernetes.client.apis.AppsV1Api;
 import io.kubernetes.client.apis.CoreV1Api;
-import io.kubernetes.client.models.V1Container;
-import io.kubernetes.client.models.V1PodSpec;
+import io.kubernetes.client.models.*;
 import org.apache.commons.lang.StringUtils;
 import org.apache.pulsar.functions.instance.InstanceConfig;
 import org.apache.pulsar.functions.proto.Function;
@@ -80,10 +81,12 @@ public class KubernetesRuntimeTest {
             if (!StringUtils.isEmpty(functionDetails.getSecretsMap())) {
                 if (functionDetails.getRuntime() == FunctionDetails.Runtime.JAVA) {
                     return ClearTextSecretsProvider.class.getName();
-                } else {
+                }
+                else {
                     return "secretsprovider.ClearTextSecretsProvider";
                 }
-            } else {
+            }
+            else {
                 return null;
             }
         }
@@ -149,33 +152,45 @@ public class KubernetesRuntimeTest {
         }
     }
 
-    KubernetesRuntimeFactory createKubernetesRuntimeFactory(String extraDepsDir, int percentMemoryPadding) throws Exception {
+    KubernetesRuntimeFactory createKubernetesRuntimeFactory(String extraDepsDir, int percentMemoryPadding, String manifestCustomizerClassName) throws Exception {
         KubernetesRuntimeFactory factory = spy(new KubernetesRuntimeFactory(
-            null,
-            null,
-            null,
-            null,
-            pulsarRootDir,
-            false,
-            true,
-            "myrepo",
-            "anotherrepo",
-            extraDepsDir,
-            null,
+                null,
+                null,
+                null,
+                null,
+                pulsarRootDir,
+                false,
+                true,
+                "myrepo",
+                "anotherrepo",
+                extraDepsDir,
+                null,
                 percentMemoryPadding,
                 pulsarServiceUrl,
-            pulsarAdminUrl,
-            stateStorageServiceUrl,
-            null,
-            null,
-            null,
-            null,
-                null, new TestSecretProviderConfigurator(), false));
+                pulsarAdminUrl,
+                stateStorageServiceUrl,
+                null,
+                null,
+                null,
+                null,
+                null,
+                new TestSecretProviderConfigurator(),
+                false,
+                manifestCustomizerClassName,
+                ""));
         doNothing().when(factory).setupClient();
         return factory;
+
+    }
+    KubernetesRuntimeFactory createKubernetesRuntimeFactory(String extraDepsDir, int percentMemoryPadding) throws Exception {
+        return createKubernetesRuntimeFactory(extraDepsDir, percentMemoryPadding, null);
     }
 
     FunctionDetails createFunctionDetails(FunctionDetails.Runtime runtime, boolean addSecrets) {
+        return createFunctionDetails(runtime, addSecrets, (fb) -> fb);
+    }
+
+    FunctionDetails createFunctionDetails(FunctionDetails.Runtime runtime, boolean addSecrets, java.util.function.Function<FunctionDetails.Builder, FunctionDetails.Builder> customize) {
         FunctionDetails.Builder functionDetailsBuilder = FunctionDetails.newBuilder();
         functionDetailsBuilder.setRuntime(runtime);
         functionDetailsBuilder.setTenant(TEST_TENANT);
@@ -198,7 +213,7 @@ public class KubernetesRuntimeTest {
             functionDetailsBuilder.setSecretsMap("SomeMap");
         }
         functionDetailsBuilder.setResources(RESOURCES);
-        return functionDetailsBuilder.build();
+        return customize.apply(functionDetailsBuilder).build();
     }
 
     InstanceConfig createJavaInstanceConfig(FunctionDetails.Runtime runtime, boolean addSecrets) {
@@ -233,7 +248,6 @@ public class KubernetesRuntimeTest {
         Assert.assertEquals(containerSpec.getResources().getLimits().get("memory").getNumber().longValue(), expectedRamWithPadding);
         Assert.assertEquals(containerSpec.getResources().getRequests().get("memory").getNumber().longValue(), expectedRamWithPadding);
     }
-
 
 
     @Test
@@ -281,7 +295,8 @@ public class KubernetesRuntimeTest {
             totalArgs = 35;
             portArg = 26;
             metricsPortArg = 28;
-        } else {
+        }
+        else {
             extraDepsEnv = "";
             portArg = 25;
             metricsPortArg = 27;
@@ -292,7 +307,7 @@ public class KubernetesRuntimeTest {
         }
 
         assertEquals(args.size(), totalArgs,
-            "Actual args : " + StringUtils.join(args, " "));
+                "Actual args : " + StringUtils.join(args, " "));
 
         String expectedArgs = "exec java -cp " + classpath
                 + extraDepsEnv
@@ -364,7 +379,8 @@ public class KubernetesRuntimeTest {
             configArg = 10;
             pythonPath = "";
             metricsPortArg = 32;
-        } else {
+        }
+        else {
             totalArgs = 40;
             portArg = 31;
             configArg = 11;
@@ -376,7 +392,7 @@ public class KubernetesRuntimeTest {
         }
 
         assertEquals(args.size(), totalArgs,
-            "Actual args : " + StringUtils.join(args, " "));
+                "Actual args : " + StringUtils.join(args, " "));
         String expectedArgs = pythonPath + "exec python " + pythonInstanceFile
                 + " --py " + pulsarRootDir + "/" + userJarFile
                 + " --logging_directory " + logDirectory
@@ -410,4 +426,70 @@ public class KubernetesRuntimeTest {
         assertEquals(containerSpec.getResources().getLimits().get("cpu").getNumber().doubleValue(), RESOURCES.getCpu());
     }
 
+    @Test
+    public void testDefaultKubernetesManifestCustomizer() throws Exception {
+        InstanceConfig config = createJavaInstanceConfig(FunctionDetails.Runtime.JAVA, false);
+        config.setFunctionDetails(createFunctionDetails(FunctionDetails.Runtime.JAVA, false, (fb) -> {
+            JsonObject configObj = new JsonObject();
+            configObj.addProperty("jobNamespace", "custom-ns");
+
+            JsonObject extraAnn = new JsonObject();
+            extraAnn.addProperty("annotation", "test");
+            configObj.add("extraAnnotations", extraAnn);
+
+            JsonObject extraLabel = new JsonObject();
+            extraLabel.addProperty("label", "test");
+            configObj.add("extraLabels", extraLabel);
+
+            JsonObject nodeLabels = new JsonObject();
+            nodeLabels.addProperty("selector", "test");
+            configObj.add("nodeSelectorLabels", nodeLabels);
+
+            JsonArray tolerations = new JsonArray();
+            JsonObject toleration = new JsonObject();
+            toleration.addProperty("key", "test");
+            toleration.addProperty("value", "test");
+            toleration.addProperty("effect", "test");
+            tolerations.add(toleration);
+            configObj.add("tolerations", tolerations);
+
+            return fb.setCustomRuntimeOptions(configObj.toString());
+        }));
+
+        factory = createKubernetesRuntimeFactory(null, 10);
+
+        verifyJavaInstance(config, pulsarRootDir + "/instances/deps", false);
+        KubernetesRuntime container = factory.createContainer(config, userJarFile, userJarFile, 30l);
+        V1StatefulSet spec = container.createStatefulSet();
+        assertEquals(spec.getMetadata().getAnnotations().get("annotation"), "test");
+        assertEquals(spec.getMetadata().getLabels().get("label"), "test");
+        assertEquals(spec.getSpec().getTemplate().getSpec().getNodeSelector().get("selector"), "test");
+        List<V1Toleration> tols = spec.getSpec().getTemplate().getSpec().getTolerations();
+        // we add three by default, plus our custom
+        assertEquals(tols.size(), 4);
+        assertEquals(tols.get(3).getKey(), "test");
+        assertEquals(tols.get(3).getValue(), "test");
+        assertEquals(tols.get(3).getEffect(), "test");
+
+        V1Service serviceSpec = container.createService();
+        assertEquals(serviceSpec.getMetadata().getNamespace(), "custom-ns");
+        assertEquals(serviceSpec.getMetadata().getAnnotations().get("annotation"), "test");
+        assertEquals(serviceSpec.getMetadata().getLabels().get("label"), "test");
+
+    }
+
+    @Test
+    public void testCustomKubernetesManifestCustomizer() throws Exception {
+        InstanceConfig config = createJavaInstanceConfig(FunctionDetails.Runtime.JAVA, false);
+        config.setFunctionDetails(createFunctionDetails(FunctionDetails.Runtime.JAVA, false, (fb) -> {
+            return fb.setCustomRuntimeOptions("custom-service-account");
+        }));
+
+        factory = createKubernetesRuntimeFactory(null, 10, TestKubernetesCustomManifestCustomizer.class.getCanonicalName());
+
+        verifyJavaInstance(config, pulsarRootDir + "/instances/deps", false);
+        KubernetesRuntime container = factory.createContainer(config, userJarFile, userJarFile, 30l);
+        V1StatefulSet spec = container.createStatefulSet();
+        assertEquals(spec.getSpec().getTemplate().getSpec().getServiceAccountName(), "my-service-account");
+    }
 }

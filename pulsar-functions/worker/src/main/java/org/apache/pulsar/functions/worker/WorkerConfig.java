@@ -386,8 +386,8 @@ public class WorkerConfig implements Serializable, PulsarConfiguration {
         )
         private String k8Uri;
         @FieldContext(
-            doc = "The Kubernetes namespace to run the function instances. It is `default`,"
-                + " if this setting is left to be empty"
+            doc = "The default Kubernetes namespace to run the function instances. It is `default`,"
+                + " if this setting is left to be empty. May be overridden by a KubernetesManifestCustomizer."
         )
         private String jobNamespace;
         @FieldContext(
@@ -464,6 +464,20 @@ public class WorkerConfig implements Serializable, PulsarConfiguration {
                 doc = "Additional memory padding added on top of the memory requested by the function per on a per instance basis"
         )
         private int percentMemoryPadding;
+
+        @FieldContext(
+                doc = "The full class-name of an instance of KubernetesManifestCustomizer." +
+                        " This class receives the 'customRuntimeOptions string and can customize" +
+                        " the generation of kubernetes manifest files"
+        )
+        private String kubernetesManifestCustomizerClassName;
+
+        @FieldContext(
+                doc = "Config that can be passed to the KubernetesManifestCustomizer." +
+                        " This config is distinct from the `customRuntimeOptions` provided by functions" +
+                        " as this config is the the same across all functions and is static "
+        )
+        private String kubernetesManifestCustomizerConfig = "";
     }
     @FieldContext(
         category = CATEGORY_FUNC_RUNTIME_MNG,

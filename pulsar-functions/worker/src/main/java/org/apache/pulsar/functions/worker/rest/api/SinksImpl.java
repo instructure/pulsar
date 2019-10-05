@@ -193,7 +193,7 @@ public class SinksImpl extends ComponentImpl {
                     try {
                         Optional<FunctionAuthData> functionAuthData = worker().getFunctionRuntimeManager()
                                 .getRuntimeFactory()
-                                .getAuthProvider()
+                                .getAuthProvider(functionDetails)
                                 .cacheAuthData(tenant, namespace, sinkName, clientAuthenticationDataHttps);
 
                         if (functionAuthData.isPresent()) {
@@ -378,7 +378,7 @@ public class SinksImpl extends ComponentImpl {
                     try {
                         Optional<FunctionAuthData> newFunctionAuthData = worker().getFunctionRuntimeManager()
                                 .getRuntimeFactory()
-                                .getAuthProvider()
+                                .getAuthProvider(functionDetails)
                                 .updateAuthData(
                                         tenant, namespace,
                                         sinkName, existingFunctionAuthData,

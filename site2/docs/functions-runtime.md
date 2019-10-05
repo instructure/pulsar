@@ -10,6 +10,10 @@ Currently, Pulsar Functions support the following three methods to run functions
 - *Process*: Invoke functions in processes forked by Functions Worker.
 - *Kubernetes*: Submit functions as Kubernetes StatefulSets by Functions Worker.
 
+The differences of the thread and process modes are:
+- Thread mode: when a function runs in thread mode, it runs on the same Java virtual machine (JVM) with Functions worker.
+- Process mode: when a function runs in process mode, it runs on the same machine that Functions worker runs.
+
 ## Configure thread runtime
 
 *Thread* runtime is easy to configure. In most cases, you don't need to configure anything. You can customize the thread group name with the following settings:
@@ -58,7 +62,7 @@ kubernetesContainerFactory:
   # setting this to true is let function worker to submit functions to the same k8s cluster as function worker
   # is running. setting this to false if your function worker is not running as a k8 pod.
   submittingInsidePod: false
-  # setting the pulsar service url that pulsar function should use to connect to pulsar 
+  # setting the pulsar service url that pulsar function should use to connect to pulsar
   # if it is not set, it will use the pulsar service url configured in worker service
   pulsarServiceUrl:
   # setting the pulsar admin url that pulsar function should use to connect to pulsar
@@ -71,6 +75,13 @@ kubernetesContainerFactory:
   extraFunctionDependenciesDir:
   # Additional memory padding added on top of the memory requested by the function per on a per instance basis
   percentMemoryPadding: 10
+  # an instance of `org.apache.pulsar.functions.runtime.KubernetesManifestCustomizer` which can be implemented
+  # to inject customization of the generated k8s manifest, leave blank to use the default customization plugin.
+  # This class is passed the `customRuntimeOptions` flag passed to functions
+  kubernetesManifestCustomizerClassName:
+  # a string that is passed to the manifest customizer class, this config is used for all functions and is static
+  # (as opposed to the `customRuntimeOptions` which can be provided per function)
+  kubernetesManifestCustomizerConfig:
 ```
 
 If you have already run a Pulsar cluster on Kubernetes, you can keep the settings unchanged at most of time.
@@ -79,7 +90,7 @@ However, if you enable RBAC on deploying your Pulsar cluster, make sure the serv
 running Functions Workers (or brokers, if Functions Workers run along with brokers) have permissions on the following
 kubernetes APIs.
 
-- services 
+- services
 - configmaps
 - pods
 - apps.statefulsets
@@ -104,7 +115,7 @@ If this happens, you need to grant the required permissions to the service accou
 apiVersion: rbac.authorization.k8s.io/v1beta1
 kind: ClusterRole
 metadata:
-  name: functions-worker 
+  name: functions-worker
 rules:
 - apiGroups: [""]
   resources:
@@ -136,4 +147,35 @@ roleRef:
 subjects:
 - kind: ServiceAccount
   name: functions-worker
+```
+
+### Kubernetes CustomRuntimeOptions
+
+The functions (and sinks/sources) API provides a flag, `customRuntimeOptions` which can be used to pass options to the runtime to customize how the runtime operates.
+
+In the case of case of kubernetes, this is passed to an instance of the `org.apache.pulsar.functions.runtime.KubernetesManifestCustomizer`. This interface can be overridden
+and allows for a high degree of customization over how the K8S manifests are generated.
+
+Pulsar provides a default implementation of this interface which takes the following options as a json string:
+
+```Json
+{
+  "jobNamespace": "namespace", // the k8s namespace to run this function in
+  "extractLabels": {           // extra labels to attach to the statefulSet, service, and pods
+    "extraLabel": "value"
+  },
+  "extraAnnotations": {        // extra annotations to attach to the statefulSet, service, and pods
+    "extraAnnotation": "value"
+  },
+  "nodeSelectorLabels": {      // node selector labels to add on to the pod spec
+    "customLabel": "value"
+  },
+  "tolerations": [             // tolerations to add to the pod spec
+    {
+      "key": "custom-key",
+      "value": "value",
+      "effect": "NoSchedule"
+    }
+  ]
+}
 ```

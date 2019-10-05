@@ -290,6 +290,7 @@ public class FunctionActioner {
         FunctionDetails details = functionRuntimeInfo.getFunctionInstance().getFunctionMetaData().getFunctionDetails();
         String fqfn = FunctionCommon.getFullyQualifiedName(details);
         log.info("{}-{} Terminating function...", fqfn,functionRuntimeInfo.getFunctionInstance().getInstanceId());
+        FunctionDetails funcDetails = functionRuntimeInfo.getFunctionInstance().getFunctionMetaData().getFunctionDetails();
 
         if (functionRuntimeInfo.getRuntimeSpawner() != null) {
             functionRuntimeInfo.getRuntimeSpawner().close();
@@ -299,7 +300,7 @@ public class FunctionActioner {
                 try {
                     log.info("{}-{} Cleaning up authentication data for function...", fqfn,functionRuntimeInfo.getFunctionInstance().getInstanceId());
                     functionRuntimeInfo.getRuntimeSpawner()
-                            .getRuntimeFactory().getAuthProvider()
+                            .getRuntimeFactory().getAuthProvider(funcDetails)
                             .cleanUpAuthData(
                                     details.getTenant(), details.getNamespace(), details.getName(),
                                     Optional.ofNullable(getFunctionAuthData(

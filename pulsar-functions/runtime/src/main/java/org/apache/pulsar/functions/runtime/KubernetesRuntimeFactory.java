@@ -40,6 +40,7 @@ import org.apache.pulsar.functions.instance.AuthenticationConfig;
 import org.apache.pulsar.functions.instance.InstanceConfig;
 import org.apache.pulsar.functions.proto.Function;
 import org.apache.pulsar.functions.secretsproviderconfigurator.SecretsProviderConfigurator;
+import org.apache.pulsar.functions.utils.Reflections;
 
 import java.lang.reflect.Field;
 import java.util.Map;
@@ -89,6 +90,8 @@ public class KubernetesRuntimeFactory implements RuntimeFactory {
     private final String extraDependenciesDir;
     private final SecretsProviderConfigurator secretsProviderConfigurator;
     private final String logDirectory = "logs/functions";
+    private final String manifestCustomizerClassName;
+    private final String manifestCustomizerStaticConfig;
     private Timer changeConfigMapTimer;
     private AppsV1Api appsClient;
     private CoreV1Api coreClient;
@@ -117,7 +120,9 @@ public class KubernetesRuntimeFactory implements RuntimeFactory {
                                     String changeConfigMapNamespace,
                                     Resources functionInstanceMinResources,
                                     SecretsProviderConfigurator secretsProviderConfigurator,
-                                    boolean authenticationEnabled) {
+                                    boolean authenticationEnabled,
+                                    String manifestCustomizerClassName,
+                                    String manifestCustomizerStaticConfig) {
         this.kubernetesInfo = new KubernetesInfo();
         this.kubernetesInfo.setK8Uri(k8Uri);
         if (!isEmpty(jobNamespace)) {
@@ -169,6 +174,8 @@ public class KubernetesRuntimeFactory implements RuntimeFactory {
         this.secretsProviderConfigurator = secretsProviderConfigurator;
         this.functionInstanceMinResources = functionInstanceMinResources;
         this.authenticationEnabled = authenticationEnabled;
+        this.manifestCustomizerClassName = manifestCustomizerClassName;
+        this.manifestCustomizerStaticConfig = manifestCustomizerStaticConfig;
         try {
             setupClient();
         } catch (Exception e) {
@@ -200,16 +207,20 @@ public class KubernetesRuntimeFactory implements RuntimeFactory {
                 throw new RuntimeException("Unsupported Runtime " + instanceConfig.getFunctionDetails().getRuntime());
         }
 
+        KubernetesFunctionAuthProvider authProvider = getAuthProvider(instanceConfig.getFunctionDetails());
         // adjust the auth config to support auth
         if (authenticationEnabled) {
-            getAuthProvider().configureAuthenticationConfig(authConfig,
+            authProvider.configureAuthenticationConfig(authConfig,
                     Optional.ofNullable(getFunctionAuthData(Optional.ofNullable(instanceConfig.getFunctionAuthenticationSpec()))));
         }
+
+        KubernetesManifestCustomizer manifestCustomizer = buildManifestCustomizer(instanceConfig.getFunctionDetails());
 
         return new KubernetesRuntime(
             appsClient,
             coreClient,
-            this.kubernetesInfo.getJobNamespace(),
+            // get the namespace for this function
+            manifestCustomizer.customizeNamespace(this.kubernetesInfo.getJobNamespace()),
             customLabels,
             installUserCodeDependencies,
             this.kubernetesInfo.getPythonDependencyRepository(),
@@ -230,8 +241,9 @@ public class KubernetesRuntimeFactory implements RuntimeFactory {
             secretsProviderConfigurator,
             expectedMetricsCollectionInterval,
             this.kubernetesInfo.getPercentMemoryPadding(),
-            getAuthProvider(),
-            authenticationEnabled);
+            authProvider,
+            authenticationEnabled,
+            manifestCustomizer);
     }
 
     @Override
@@ -242,7 +254,8 @@ public class KubernetesRuntimeFactory implements RuntimeFactory {
     public void doAdmissionChecks(Function.FunctionDetails functionDetails) {
         KubernetesRuntime.doChecks(functionDetails);
         validateMinResourcesRequired(functionDetails);
-        secretsProviderConfigurator.doAdmissionChecks(appsClient, coreClient, kubernetesInfo.getJobNamespace(), functionDetails);
+        KubernetesManifestCustomizer manifestCustomizer = buildManifestCustomizer(functionDetails);
+        secretsProviderConfigurator.doAdmissionChecks(appsClient, coreClient, manifestCustomizer.customizeNamespace(kubernetesInfo.getJobNamespace()), functionDetails);
     }
 
     @VisibleForTesting
@@ -332,8 +345,21 @@ public class KubernetesRuntimeFactory implements RuntimeFactory {
         }
     }
 
+    KubernetesManifestCustomizer buildManifestCustomizer(Function.FunctionDetails funcDetails) {
+
+        KubernetesManifestCustomizer manifestCustomizer;
+        if (!isEmpty(manifestCustomizerClassName)) {
+            manifestCustomizer = (KubernetesManifestCustomizer) Reflections.createInstance(manifestCustomizerClassName, ClassLoader.getSystemClassLoader());
+        } else {
+            manifestCustomizer = new DefaultKubernetesManifestCustomizer();
+        }
+        manifestCustomizer.init(funcDetails, manifestCustomizerStaticConfig);
+        return manifestCustomizer;
+    }
+
     @Override
-    public KubernetesFunctionAuthProvider getAuthProvider() {
-        return new KubernetesSecretsTokenAuthProvider(coreClient, kubernetesInfo.jobNamespace);
+    public KubernetesFunctionAuthProvider getAuthProvider(Function.FunctionDetails funcDetails) {
+        KubernetesManifestCustomizer manifestCustomizer = buildManifestCustomizer(funcDetails);
+        return new KubernetesSecretsTokenAuthProvider(coreClient, manifestCustomizer.customizeNamespace(kubernetesInfo.jobNamespace));
     }
 }
