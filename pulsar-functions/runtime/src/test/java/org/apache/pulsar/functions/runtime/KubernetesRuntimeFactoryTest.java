@@ -146,6 +146,7 @@ public class KubernetesRuntimeFactoryTest {
                 null,
                 null,
                 null,
+                null,
                 minResources,
                 new TestSecretProviderConfigurator(),
                 false,

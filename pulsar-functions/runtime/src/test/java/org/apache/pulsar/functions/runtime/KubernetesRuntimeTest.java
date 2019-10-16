@@ -174,6 +174,7 @@ public class KubernetesRuntimeTest {
                 null,
                 null,
                 null,
+                null,
                 new TestSecretProviderConfigurator(),
                 false,
                 manifestCustomizerClassName,

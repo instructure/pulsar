@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.functions.auth;
 
+import com.google.common.annotations.VisibleForTesting;
 import io.kubernetes.client.ApiException;
 import io.kubernetes.client.apis.CoreV1Api;
 import io.kubernetes.client.models.V1DeleteOptions;
@@ -38,6 +39,8 @@ import org.apache.pulsar.functions.utils.FunctionCommon;
 
 import javax.naming.AuthenticationException;
 import java.util.Collections;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.atomic.AtomicBoolean;
 
@@ -54,13 +57,19 @@ public class KubernetesSecretsTokenAuthProvider implements KubernetesFunctionAut
     private static final String SECRET_NAME = "function-auth";
     private static final String DEFAULT_SECRET_MOUNT_DIR = "/etc/auth";
     private static final String FUNCTION_AUTH_TOKEN = "token";
+    private static final String FUNCTION_CA_CERT = "ca.pem";
+
 
     private final CoreV1Api coreClient;
     private final String kubeNamespace;
+    private final byte[] caBytes;
 
-    public KubernetesSecretsTokenAuthProvider(CoreV1Api coreClient, String kubeNamespace) {
+    // if TLS is enabled, get the CA bytes into the secret for the function worker
+    // this allows user to not need to specialize the image just to get the CA into the container
+    public KubernetesSecretsTokenAuthProvider(CoreV1Api coreClient, String kubeNamespace, byte[] caBytes) {
         this.coreClient = coreClient;
         this.kubeNamespace = kubeNamespace;
+        this.caBytes = caBytes;
     }
 
     @Override
@@ -97,6 +106,10 @@ public class KubernetesSecretsTokenAuthProvider implements KubernetesFunctionAut
         } else {
             authConfig.setClientAuthenticationPlugin(AuthenticationToken.class.getName());
             authConfig.setClientAuthenticationParameters(String.format("file://%s/%s", DEFAULT_SECRET_MOUNT_DIR, FUNCTION_AUTH_TOKEN));
+            // if we have ca bytes, update the new path for the CA
+            if (this.caBytes != null) {
+                authConfig.setTlsTrustCertsFilePath(String.format("%s/%s", DEFAULT_SECRET_MOUNT_DIR, FUNCTION_CA_CERT));
+            }
         }
     }
 
@@ -250,6 +263,16 @@ public class KubernetesSecretsTokenAuthProvider implements KubernetesFunctionAut
         return existingFunctionAuthData;
     }
 
+    @VisibleForTesting
+    Map<String, byte[]> buildSecretMap(String token) {
+        Map<String, byte[]> valueMap = new HashMap<>();
+        valueMap.put(FUNCTION_AUTH_TOKEN, token.getBytes());
+        if (caBytes != null) {
+            valueMap.put(FUNCTION_CA_CERT, caBytes);
+        }
+        return valueMap;
+    }
+
     private void upsertSecret(String token, String tenant, String namespace, String name, String secretName) throws InterruptedException {
 
         Actions.Action createAuthSecret = Actions.Action.builder()
@@ -260,7 +283,7 @@ public class KubernetesSecretsTokenAuthProvider implements KubernetesFunctionAut
                     String id =  RandomStringUtils.random(5, true, true).toLowerCase();
                     V1Secret v1Secret = new V1Secret()
                             .metadata(new V1ObjectMeta().name(secretName))
-                            .data(Collections.singletonMap(FUNCTION_AUTH_TOKEN, token.getBytes()));
+                            .data(buildSecretMap(token));
 
                     try {
                         coreClient.createNamespacedSecret(kubeNamespace, v1Secret, null);
@@ -313,7 +336,7 @@ public class KubernetesSecretsTokenAuthProvider implements KubernetesFunctionAut
                     String id =  RandomStringUtils.random(5, true, true).toLowerCase();
                     V1Secret v1Secret = new V1Secret()
                             .metadata(new V1ObjectMeta().name(getSecretName(id)))
-                            .data(Collections.singletonMap(FUNCTION_AUTH_TOKEN, token.getBytes()));
+                            .data(buildSecretMap(token));
                     try {
                         coreClient.createNamespacedSecret(kubeNamespace, v1Secret, "true");
                     } catch (ApiException e) {
