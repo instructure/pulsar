@@ -193,7 +193,7 @@ public class FunctionActionerTest {
         RuntimeFactory runtimeFactory = mock(RuntimeFactory.class);
 
         FunctionAuthProvider functionAuthProvider = mock(FunctionAuthProvider.class);
-        doReturn(functionAuthProvider).when(runtimeFactory).getAuthProvider();
+        doReturn(functionAuthProvider).when(runtimeFactory).getAuthProvider(functionMeta.getFunctionDetails());
 
         doReturn(runtimeFactory).when(runtimeSpawner).getRuntimeFactory();
         doReturn(instance).when(functionRuntimeInfo).getFunctionInstance();

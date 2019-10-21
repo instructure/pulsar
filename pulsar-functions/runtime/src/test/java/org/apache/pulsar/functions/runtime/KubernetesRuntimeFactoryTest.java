@@ -59,10 +59,12 @@ public class KubernetesRuntimeFactoryTest {
             if (!StringUtils.isEmpty(functionDetails.getSecretsMap())) {
                 if (functionDetails.getRuntime() == FunctionDetails.Runtime.JAVA) {
                     return ClearTextSecretsProvider.class.getName();
-                } else {
+                }
+                else {
                     return "secretsprovider.ClearTextSecretsProvider";
                 }
-            } else {
+            }
+            else {
                 return null;
             }
         }
@@ -125,27 +127,31 @@ public class KubernetesRuntimeFactoryTest {
 
     KubernetesRuntimeFactory createKubernetesRuntimeFactory(String extraDepsDir, Resources minResources) throws Exception {
         KubernetesRuntimeFactory factory = spy(new KubernetesRuntimeFactory(
-            null,
-            null,
-            null,
-            null,
-            pulsarRootDir,
-            false,
-            true,
-            "myrepo",
-            "anotherrepo",
-            extraDepsDir,
-            null,
+                null,
+                null,
+                null,
+                null,
+                pulsarRootDir,
+                false,
+                true,
+                "myrepo",
+                "anotherrepo",
+                extraDepsDir,
+                null,
                 0,
                 pulsarServiceUrl,
-            pulsarAdminUrl,
-            stateStorageServiceUrl,
-            null,
-            null,
-            null,
-            null,
+                pulsarAdminUrl,
+                stateStorageServiceUrl,
+                null,
+                null,
+                null,
+                null,
+                null,
                 minResources,
-                new TestSecretProviderConfigurator(), false));
+                new TestSecretProviderConfigurator(),
+                false,
+                "",
+                ""));
         doNothing().when(factory).setupClient();
         return factory;
     }
@@ -182,8 +188,8 @@ public class KubernetesRuntimeFactoryTest {
 
         testMinResource(0.2, 2048L, false, null);
         testMinResource(0.05, 2048L, true, "Per instance CPU requested, 0.05, for function is less than the minimum required, 0.1");
-        testMinResource(0.2,512L, true, "Per instance RAM requested, 512, for function is less than the minimum required, 1024");
-        testMinResource(0.05,512L, true, "Per instance CPU requested, 0.05, for function is less than the minimum required, 0.1");
+        testMinResource(0.2, 512L, true, "Per instance RAM requested, 512, for function is less than the minimum required, 1024");
+        testMinResource(0.05, 512L, true, "Per instance CPU requested, 0.05, for function is less than the minimum required, 0.1");
         testMinResource(null, null, true, "Per instance CPU requested, 0.0, for function is less than the minimum required, 0.1");
         testMinResource(0.2, null, true, "Per instance RAM requested, 0, for function is less than the minimum required, 1024");
 
@@ -207,7 +213,8 @@ public class KubernetesRuntimeFactoryTest {
         FunctionDetails functionDetails;
         if (ram != null || cpu != null) {
             functionDetails = FunctionDetails.newBuilder(functionDetailsBase).setResources(resources).build();
-        } else {
+        }
+        else {
             functionDetails = FunctionDetails.newBuilder(functionDetailsBase).build();
         }
 

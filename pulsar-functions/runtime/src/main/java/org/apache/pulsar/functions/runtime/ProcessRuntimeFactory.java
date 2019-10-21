@@ -136,7 +136,7 @@ public class ProcessRuntimeFactory implements RuntimeFactory {
 
         // configure auth if necessary
         if (authenticationEnabled) {
-            getAuthProvider().configureAuthenticationConfig(authConfig,
+            getAuthProvider(instanceConfig.getFunctionDetails()).configureAuthenticationConfig(authConfig,
                     Optional.ofNullable(getFunctionAuthData(Optional.ofNullable(instanceConfig.getFunctionAuthenticationSpec()))));
         }
 

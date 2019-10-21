@@ -45,7 +45,7 @@ public interface RuntimeFactory extends AutoCloseable {
 
     default void doAdmissionChecks(Function.FunctionDetails functionDetails) { }
 
-    default FunctionAuthProvider getAuthProvider() throws IllegalAccessException, InstantiationException {
+    default FunctionAuthProvider getAuthProvider(Function.FunctionDetails funcDetails) throws IllegalAccessException, InstantiationException {
         return NoOpFunctionAuthProvider.class.newInstance();
     }
 
