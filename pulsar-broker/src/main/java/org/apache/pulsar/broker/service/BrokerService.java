@@ -599,7 +599,11 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
      */
     protected CompletableFuture<Optional<Topic>> loadOrCreatePersistentTopic(final String topic,
             boolean createIfMissing) throws RuntimeException {
-        checkTopicNsOwnership(topic);
+        try {
+            checkTopicNsOwnership(topic);
+        } catch (BrokerServiceException e){
+            throw new RuntimeException(e);
+        }
 
         final CompletableFuture<Optional<Topic>> topicFuture = new CompletableFuture<>();
         if (!pulsar.getConfiguration().isEnablePersistentTopics()) {
@@ -975,21 +979,22 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
         });
     }
 
-    public void checkTopicNsOwnership(final String topic) throws RuntimeException {
+    public void checkTopicNsOwnership(final String topic) throws BrokerServiceException {
         TopicName topicName = TopicName.get(topic);
         boolean ownedByThisInstance;
         try {
             ownedByThisInstance = pulsar.getNamespaceService().isServiceUnitOwned(topicName);
         } catch (Exception e) {
             log.debug(String.format("Failed to check the ownership of the topic: %s", topicName), e);
-            throw new RuntimeException(new ServerMetadataException(e));
+            throw new ServerMetadataException(e);
         }
 
         if (!ownedByThisInstance) {
             String msg = String.format("Namespace bundle for topic (%s) not served by this instance. Please redo the lookup. "
                     + "Request is denied: namespace=%s", topic, topicName.getNamespace());
             log.warn(msg);
-            throw new RuntimeException(new ServiceUnitNotReadyException(msg));
+            f
+            throw new ServiceUnitNotReadyException(msg);
         }
     }
 
@@ -1513,9 +1518,10 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
                 createPendingLoadTopic();
                 return null;
             });
-        } catch (RuntimeException re) {
-            log.error("Failed to create pending topic {} {}", topic, re);
-            pendingTopic.getRight().completeExceptionally(re.getCause());
+        } catch (RuntimeException | BrokerServiceException e) {
+            log.error("Failed to create pending topic {} {}", topic, e);
+            Throwable cause = Optional.ofNullable(e.getCause()).orElse(e);
+            pendingTopic.getRight().completeExceptionally(cause);
             // schedule to process next pending topic
             inactivityMonitor.schedule(() -> createPendingLoadTopic(), 100, TimeUnit.MILLISECONDS);
         }
