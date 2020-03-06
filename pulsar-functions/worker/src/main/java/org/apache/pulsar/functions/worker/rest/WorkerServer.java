@@ -103,7 +103,7 @@ public class WorkerServer {
                 newServletContextHandler("/admin/v2", new ResourceConfig(Resources.getApiV2Resources()), workerService));
         handlers.add(
                 newServletContextHandler("/admin/v3", new ResourceConfig(Resources.getApiV3Resources()), workerService));
-        handlers.add(newServletContextHandler("/", new ResourceConfig(Resources.getRootResources()), workerService));
+        handlers.add(newServletContextHandler("/", new ResourceConfig(Resources.getRootResources()), workerService, true));
 
         RequestLogHandler requestLogHandler = new RequestLogHandler();
         Slf4jRequestLog requestLog = new Slf4jRequestLog();
@@ -142,6 +142,10 @@ public class WorkerServer {
     }
 
     public static ServletContextHandler newServletContextHandler(String contextPath, ResourceConfig config, WorkerService workerService) {
+        return newServletContextHandler(contextPath, config, workerService, false);
+    }
+
+    public static ServletContextHandler newServletContextHandler(String contextPath, ResourceConfig config, WorkerService workerService, Boolean skipAuth) {
         final ServletContextHandler contextHandler =
                 new ServletContextHandler(ServletContextHandler.NO_SESSIONS);
 
@@ -153,7 +157,7 @@ public class WorkerServer {
         final ServletHolder apiServlet =
                 new ServletHolder(new ServletContainer(config));
         contextHandler.addServlet(apiServlet, "/*");
-        if (workerService.getWorkerConfig().isAuthenticationEnabled()) {
+        if (workerService.getWorkerConfig().isAuthenticationEnabled() && !skipAuth) {
             FilterHolder filter = new FilterHolder(new AuthenticationFilter(workerService.getAuthenticationService()));
             contextHandler.addFilter(filter, MATCH_ALL, EnumSet.allOf(DispatcherType.class));
         }
