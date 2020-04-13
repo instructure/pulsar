@@ -45,6 +45,9 @@ public class ServiceConfig implements PulsarConfiguration {
     // ZooKeeper session timeout
     private int zookeeperSessionTimeoutMs = 30_000;
 
+    // ZooKeeper cache expiry time in seconds
+    private int zooKeeperCacheExpirySeconds=300;
+
     // Port to use to server binary-proto request
     private Optional<Integer> servicePort = Optional.ofNullable(5000);
     // Port to use to server binary-proto-tls request
@@ -78,7 +81,7 @@ public class ServiceConfig implements PulsarConfiguration {
     /***** --- TLS --- ****/
     @Deprecated
     private boolean tlsEnabled = false;
-    // Tls cert refresh duration in seconds (set 0 to check on every new connection) 
+    // Tls cert refresh duration in seconds (set 0 to check on every new connection)
     private long tlsCertRefreshCheckDurationSec = 300;
     // Path for the TLS certificate file
     private String tlsCertificateFilePath;
@@ -132,6 +135,14 @@ public class ServiceConfig implements PulsarConfiguration {
 
     public void setZookeeperSessionTimeoutMs(int zookeeperSessionTimeoutMs) {
         this.zookeeperSessionTimeoutMs = zookeeperSessionTimeoutMs;
+    }
+
+    public int getZooKeeperCacheExpirySeconds() {
+        return zooKeeperCacheExpirySeconds;
+    }
+
+    public void setZooKeeperCacheExpirySeconds(int zooKeeperCacheExpirySeconds) {
+        this.zooKeeperCacheExpirySeconds = zooKeeperCacheExpirySeconds;
     }
 
     public Optional<Integer> getServicePort() {
