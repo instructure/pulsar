@@ -742,7 +742,7 @@ public abstract class NamespacesBase extends AdminResource {
         });
     }
 
-    
+
     protected void internalSetBookieAffinityGroup(BookieAffinityGroupData bookieAffinityGroup) {
         log.info("[{}] Setting bookie-affinity-group {} for namespace {}", clientAppId(), bookieAffinityGroup,
                 this.namespaceName);
