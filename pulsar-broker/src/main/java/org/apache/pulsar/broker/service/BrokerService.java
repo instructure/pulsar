@@ -984,7 +984,7 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
     }
 
     public CompletableFuture<ManagedLedgerConfig> getManagedLedgerConfig(TopicName topicName) {
-        CompletableFuture<ManagedLedgerConfig> future = futureWithDeadline();
+        CompletableFuture<ManagedLedgerConfig> future = futureWithDeadline(5L, TimeUnit.MINUTES, new Exception("Failed to load ledger config within timeout"));
         // Execute in background thread, since getting the policies might block if the z-node wasn't already cached
         pulsar.getOrderedExecutor().executeOrdered(topicName, safeRun(() -> {
             NamespaceName namespace = topicName.getNamespaceObject();
